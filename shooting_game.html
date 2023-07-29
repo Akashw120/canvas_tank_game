@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            margin: 0px;
+        }
+
+        .canvas_cont {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        canvas {
+            background: black;
+        }
+
+        .info_cont {
+            padding: 20px;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 5px;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="canvas_cont"><canvas id="canvas" width="900" height="500"></canvas>
+        <div class="info_cont">
+            <div>
+                <table>
+                    <tr>
+                        <th>Controls</th>
+                        <th>Player 1:</th>
+                        <th>Player 2:</th>
+                    </tr>
+                    <tr>
+                        <td>Move Left</td>
+                        <td>A</td>
+                        <td>Left Arrow</td>
+                    </tr>
+                    <tr>
+                        <td>Move Right</td>
+                        <td>D</td>
+                        <td>Right Arrow</td>
+                    </tr>
+                    <tr>
+                        <td>Fire</td>
+                        <td>W</td>
+                        <td>Forward Arrow</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+
+    var num_win = 1;
+    var ball_speed = 20;
+    var tank_speed = 5;
+    var bullet_power = 51;
+
+    var p1_win = 0;
+    var p1_health = 100;
+    var p2_win = 0;
+    var p2_health = 100;
+    var count = 3
+
+
+
+    var balls = [];
+    var since_last_fire = performance.now();
+
+    var balls1 = [];
+    var since_last_fire1 = performance.now();
+
+
+    //This part handles the pressing of keys used to move the tank and fire
+    var right_pressed = false;
+    var left_pressed = false;
+    var fire_pressed = false;
+
+    var right_pressed2 = false;
+    var left_pressed2 = false;
+    var fire_pressed2 = false;
+
+
+    document.addEventListener("keydown", KeyDownFunc, false);
+    document.addEventListener("keyup", KeyUpFunc, false);
+    document.addEventListener("keydown", KeyDownFunc1, false);
+    document.addEventListener("keyup", KeyUpFunc1, false);
+    function KeyDownFunc1(e) {
+        if (e.keyCode == 39) {
+            right_pressed = true;
+        } else if (e.keyCode == 37) {
+            left_pressed = true;
+        } else if (e.keyCode == 38) {
+            fire_pressed = true;
+        }
+    }
+
+    function KeyUpFunc1(e) {
+        if (e.keyCode == 39) {
+            right_pressed = false;
+        } else if (e.keyCode == 37) {
+            left_pressed = false;
+        } else if (e.keyCode == 38) {
+            fire_pressed = false;
+        }
+    }
+
+
+    function KeyDownFunc(e) {
+        if (e.keyCode == 68) {
+            right_pressed2 = true;
+        } else if (e.keyCode == 65) {
+            left_pressed2 = true;
+        } else if (e.keyCode == 87) {
+            fire_pressed2 = true;
+        }
+    }
+
+    function KeyUpFunc(e) {
+        if (e.keyCode == 68) {
+            right_pressed2 = false;
+        } else if (e.keyCode == 65) {
+            left_pressed2 = false;
+        } else if (e.keyCode == 87) {
+            fire_pressed2 = false;
+        }
+    }
+
+
+    //tank  player 
+    var tank_width = 35;
+    var tank_height = 20;
+    var tank_color = "white"
+    var tank1_color = "blue"
+    var ball_color = "white"
+    var ball1_color = "blue"
+
+
+    var tank = new Map();
+    tank.set("X", canvas.width * Math.random());
+    tank.set("Y", canvas.height - 50);
+    tank.set("width", tank_width);
+    tank.set("height", tank_height);
+
+
+    //Drawing the Tank player 1
+    function drawTank() {
+        ctx.beginPath();
+        ctx.rect(tank.get("X"), tank.get("Y"), tank_width, tank_height);
+        ctx.fillStyle = tank_color;
+
+        ctx.rect(tank.get("X") + tank_width / 2 - 5, tank.get("Y") - 7, 10, 15);
+        ctx.fillStyle = tank_color;
+
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    //tank  player 2
+
+    var tank1 = new Map();
+    tank1.set("X", canvas.width * Math.random());
+    tank1.set("Y", 30);
+    tank1.set("width", tank_width);
+    tank1.set("height", tank_height);
+
+    function drawTank1() {
+        ctx.beginPath();
+        ctx.rect(tank1.get("X"), tank1.get("Y"), tank_width, tank_height);
+        ctx.fillStyle = tank1_color;
+
+        ctx.rect(tank1.get("X") + tank_width / 2 - 5, tank1.get("Y") + 12, 10, 15);
+        ctx.fillStyle = tank1_color;
+
+        ctx.fill();
+        ctx.closePath();
+    }
+
+
+    //Initializing a new ball (starting position), adding it to a list
+    function drawNewBall(ball_X, ball_Y) {
+        ctx.beginPath();
+        ctx.arc(ball_X, ball_Y, 5, 0, Math.PI * 2);
+
+        var ball = new Map();
+        ball.set("X", ball_X + 3);
+        ball.set("Y", ball_Y + 18);
+        ball.set("width", 3);
+        ball.set("height", 3);
+        balls.push(ball);
+        since_last_fire = performance.now();
+    }
+
+    //drawing all of the balls of the list
+    function drawBalls() {
+        for (var i = 0; i < balls.length; i++) {
+            ctx.beginPath();
+            ctx.arc(balls[i].get("X"), balls[i].get("Y"), 5, 0, Math.PI * 2);
+            ctx.fillStyle = ball_color;
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+
+    function moveBalls() {
+        //Moving the Balls
+        for (var i = 0; i < balls.length; i++) {
+            balls[i].set("Y", balls[i].get("Y") - ball_speed);
+            //Drops the ball from the balls array when they're out of view
+            if (balls[i].get("Y") < 0) {
+                balls.splice(i, 1);
+            }
+        }
+
+    }
+
+
+
+
+    //Initializing a new ball (starting position), adding it to a list
+    function drawNewBall1(ball1_X, ball1_Y) {
+        ctx.beginPath();
+        ctx.arc(ball1_Y, ball1_X, 5, 0, Math.PI * 2);
+
+        var ball1 = new Map();
+        ball1.set("X", ball1_X + 3);
+        ball1.set("Y", ball1_Y + 60);
+        ball1.set("width", 3);
+        ball1.set("height", 3);
+        balls1.push(ball1);
+        since_last_fire1 = performance.now();
+    }
+
+    //drawing all of the balls of the list
+    function drawBalls1() {
+        for (var i = 0; i < balls1.length; i++) {
+            ctx.beginPath();
+            ctx.arc(balls1[i].get("X"), balls1[i].get("Y"), 5, 0, Math.PI * 2);
+            ctx.fillStyle = ball1_color;
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+
+    function moveBalls1() {
+        //Moving the Balls
+        for (var i = 0; i < balls1.length; i++) {
+            balls1[i].set("Y", balls1[i].get("Y") + ball_speed);
+            //Drops the ball from the balls array when they're out of view
+            if (balls1[i].get("Y") < 0) {
+                balls1.splice(i, 1);
+            }
+        }
+
+    }
+
+    //Ball Collision detection function
+    function tank1_ball_collision() {
+        for (i = 0; i < balls.length; i++) {
+            var conflict_X = false;
+            var conflict_Y = false;
+            if (tank1.get("X") + tank_width > balls[i].get("X") && tank1.get("X") < balls[i].get("X") + 40) {
+                conflict_X = conflict_X || true;
+            }
+            if (tank1.get("Y") < balls[i].get("Y") + 60 && tank1.get("Y") > balls[i].get("Y")) {
+                conflict_Y = conflict_Y || true;
+            }
+            if (conflict_X && conflict_Y) {
+                ball_color = "black";
+                tank1_color = "red";
+                player1hitplayer2 = true;
+                power1 = Math.floor(Math.random() * bullet_power);
+                p2_health = p2_health - power1;
+                setTimeout(function () {
+                    tank1_color = "red";
+                }, 200);
+                setTimeout(function () {
+                    tank1_color = "red";
+                }, 400);
+                setTimeout(function () {
+                    tank1.set("X", canvas.width * Math.random());
+                    tank1_color = "red";
+                }, 500);
+                setTimeout(function () {
+                    tank1_color = "red";
+                }, 600);
+                setTimeout(function () {
+                    tank1_color = "red";
+                }, 800);
+
+                return;
+            }
+        }
+        player1hitplayer2 = false;
+        tank1_color = "blue";
+
+    }
+
+
+    function tank_ball1_collision() {
+
+        for (i = 0; i < balls1.length; i++) {
+            var conflict_X = false;
+            var conflict_Y = false;
+
+            if (tank.get("X") + tank_width > balls1[i].get("X") && tank.get("X") < balls1[i].get("X") + 40) {
+                conflict_X = conflict_X || true;
+            }
+            if (tank.get("Y") < balls1[i].get("Y") + 60 && tank.get("Y") > balls1[i].get("Y")) {
+                conflict_Y = conflict_Y || true;
+            }
+            if (conflict_X && conflict_Y) {
+                tank_color = "red"
+                ball1_color = "black"
+                player2hitplayer1 = true;
+                power = Math.floor(Math.random() * bullet_power);
+                p1_health = p1_health - power;
+                setTimeout(function () {
+                    tank_color = "red";
+                }, 200);
+                setTimeout(function () {
+                    tank_color = "red";
+                }, 400);
+                setTimeout(function () {
+                    tank.set("X", canvas.width * Math.random());
+                    tank_color = "red";
+                }, 500);
+                setTimeout(function () {
+                    tank_color = "red";
+                }, 600);
+                setTimeout(function () {
+                    tank_color = "red";
+                }, 800);
+                return;
+            }
+        }
+        player2hitplayer1 = false;
+        tank_color = "white"
+    }
+
+
+    function drawInfo() {
+        ctx.font = "bold 18px Gill Sans MT";
+        ctx.fillStyle = tank_color;
+        ctx.fillText("Player 1 Health: " + p1_health + "%", (canvas.width / 2) - 50, canvas.height - 10);
+        ctx.fillStyle = tank1_color;
+        ctx.fillText("Player 2 Health: " + p2_health + "%", (canvas.width / 2) - 50, 20);
+    }
+
+    var replay = new Map();
+    replay.set("X", canvas.width / 2);
+    replay.set("Y", (canvas.height / 2) + 20);
+    replay.set("width", 80);
+    replay.set("height", 40);
+
+    //Drawing the ramp player 1
+    function drawreplay() {
+        ctx.beginPath();
+        ctx.fillStyle = "green";
+        ctx.rect(replay.get("X"), replay.get("Y"), 65, 25);
+        ctx.fill();
+        ctx.closePath();
+        //canvas.addEventListener("click", location.reload());
+        //ctx.onclick = location.reload();
+    }
+
+    //Main function, will be used to run the game
+    function reload1() {
+        timer1 = setTimeout(function () {
+            count = 2;
+        }, 1500);
+        timer2 = setTimeout(function () {
+            clearTimeout(timer1);
+            count = 1;
+        }, 3000);
+        timer3 = setTimeout(function () {
+            location.reload();
+        }, 4500);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "Middle";
+        ctx.font = 'bold 30px Trebuchet MS, sans-serif';
+        ctx.fillStyle = 'green';
+        ctx.fillText('reload in ' + count, canvas.width / 2, (canvas.height / 2) + 35);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawTank1();
+        drawTank();
+        drawInfo();
+        drawBalls();
+        moveBalls();
+        drawBalls1();
+        moveBalls1();
+        tank1_ball_collision();
+        tank_ball1_collision();
+        if (fire_pressed && performance.now() - since_last_fire1 > 500) {
+            drawNewBall1(tank1.get("X") + 15, tank1.get("Y") - 30);
+            ball1_color = "blue"
+        }
+
+        if (fire_pressed2 && performance.now() - since_last_fire > 500) {
+            drawNewBall(tank.get("X") + 15, tank.get("Y") - 30);
+            ball_color = "white"
+        }
+
+        if (right_pressed2 && tank.get("X") + tank_width < canvas.width) {
+            tank.set("X", tank.get("X") + tank_speed);
+        }
+        if (left_pressed2 && tank.get("X") > 0) {
+            tank.set("X", tank.get("X") - tank_speed);
+        }
+
+        if (right_pressed && tank1.get("X") + tank_width < canvas.width) {
+            tank1.set("X", tank1.get("X") + tank_speed);
+        }
+        if (left_pressed && tank1.get("X") > 0) {
+            tank1.set("X", tank1.get("X") - tank_speed);
+        }
+        if (p2_health <= 0) {
+            p2_health = 100;
+            p1_win++;
+        }
+        if (p1_health <= 0) {
+            p1_health = 100;
+            p2_win++;
+        }
+        if (p1_win >= num_win) {
+            ctx.textAlign = "center";
+            ctx.textBaseline = "Middle";
+            ctx.font = 'bold 50px Trebuchet MS, sans-serif';
+            ctx.fillStyle = 'white';
+            ctx.fillText('Player 1 Win!!', canvas.width / 2, canvas.height / 2);
+            ctx.font = 'bold 50px Trebuchet MS, sans-serif';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.strokeText('Player 1 win!', canvas.width / 2, canvas.height / 2);
+        }
+        if (p2_win >= num_win) {
+            ctx.textAlign = "center";
+            ctx.textBaseline = "Middle";
+            ctx.font = 'bold 50px Trebuchet MS, sans-serif';
+            ctx.fillStyle = 'blue';
+            ctx.fillText('Player 2 Win!!', canvas.width / 2, canvas.height / 2);
+            ctx.font = 'bold 50px Trebuchet MS, sans-serif';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.strokeText('Player 2 win!', canvas.width / 2, canvas.height / 2);
+        }
+        if (p1_win >= num_win || p2_win >= num_win) {
+            reload1();
+        }
+
+
+        requestAnimationFrame(draw);
+    }
+
+    draw();
+
+</script>
+
+</html>
